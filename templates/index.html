@@ -1,0 +1,1413 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>飛泓科技 - 客戶授權與保固管理系統 (Ragic ERP 風格)</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome 6 Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts 微軟正黑與 Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['"Noto Sans TC"', 'Inter', 'sans-serif'],
+                        mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', 'monospace']
+                    },
+                    colors: {
+                        ragic: {
+                            red: '#D50E0E',
+                            redHover: '#B80B0B',
+                            dark: '#1e293b',
+                            header: '#0f172a',
+                            tabBg: '#f1f5f9',
+                            border: '#e2e8f0',
+                            tableHead: '#f8fafc',
+                            sheetBg: '#ffffff',
+                            labelCell: '#f8fafc'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { font-family: 'Noto Sans TC', Inter, sans-serif; background-color: #f1f5f9; }
+        .custom-scrollbar::-webkit-scrollbar { height: 7px; width: 7px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        
+        /* Ragic 試算表格子風格 */
+        .ragic-grid th, .ragic-grid td {
+            border: 1px solid #e2e8f0;
+        }
+        .ragic-form-table td {
+            border: 1px solid #e2e8f0;
+            padding: 8px 12px;
+        }
+        .ragic-form-label {
+            background-color: #f8fafc;
+            color: #475569;
+            font-weight: 600;
+            font-size: 13px;
+            width: 140px;
+            text-align: right;
+            vertical-align: middle;
+        }
+    </style>
+</head>
+<body class="text-slate-800 min-h-screen flex flex-col antialiased">
+
+    <!-- ==================== 頂部全域導航列 (Ragic Global Header) ==================== -->
+    <header class="bg-slate-900 text-white h-12 flex items-center justify-between px-4 z-30 select-none shadow-sm">
+        <div class="flex items-center space-x-3">
+            <div class="flex items-center gap-2">
+                <span class="w-7 h-7 rounded bg-red-600 flex items-center justify-center font-black text-white text-base shadow-xs">
+                    R
+                </span>
+                <span class="font-bold tracking-wide text-sm flex items-center gap-1.5 text-slate-100">
+                    飛泓科技 <span class="text-slate-400 font-normal">|</span> 客戶授權與保固 ERP
+                </span>
+            </div>
+            <span class="text-[11px] bg-red-600/90 text-white px-2 py-0.5 rounded font-medium flex items-center gap-1">
+                <i class="fa-solid fa-robot text-[10px]"></i> 內建 AI Agent
+            </span>
+        </div>
+
+        <!-- 頂部右側功能 -->
+        <div class="flex items-center space-x-3 text-xs">
+            <!-- 搜尋框快捷鍵提示 -->
+            <div class="relative hidden sm:block">
+                <i class="fa-solid fa-magnifying-glass absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                <input type="text" id="top-search-input" oninput="handleTopSearch(this.value)" placeholder="全域搜尋公司、證號、業務..." 
+                       class="bg-slate-800 text-slate-200 pl-8 pr-3 py-1 rounded text-xs border border-slate-700 focus:outline-none focus:border-red-500 w-52 transition">
+            </div>
+
+            <!-- AI Agent 頂部觸發按鈕 -->
+            <button onclick="toggleAiDrawer()" class="flex items-center gap-1.5 bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700 text-white px-3 py-1 rounded shadow-xs transition font-medium">
+                <i class="fa-solid fa-wand-magic-sparkles text-xs"></i>
+                <span>AI 助理</span>
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>
+            </button>
+
+            <!-- 使用者頭像與選單 -->
+            <div class="flex items-center gap-2 pl-2 border-l border-slate-700 text-slate-300">
+                <span class="w-6 h-6 rounded-full bg-slate-700 flex items-center justify-center text-xs text-white">
+                    <i class="fa-solid fa-user"></i>
+                </span>
+                <span class="hidden md:inline text-xs">系統管理員</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- ==================== 模組分頁列 (Ragic Sheet Tabs) ==================== -->
+    <nav class="bg-slate-800 border-b border-slate-700 px-4 flex items-center justify-between text-xs select-none">
+        <div class="flex space-x-1 overflow-x-auto custom-scrollbar">
+            <!-- 頁籤 1: 授權與保固明細表 (主表) -->
+            <button onclick="switchTab('contracts')" id="tab-btn-contracts" class="px-4 py-2 font-medium flex items-center gap-2 border-b-2 border-red-500 text-white bg-slate-900/60 rounded-t transition">
+                <i class="fa-solid fa-table-cells text-red-500"></i>
+                <span>授權與保固明細表</span>
+                <span id="tab-badge-contracts" class="text-[10px] bg-slate-700 px-1.5 py-0.2 rounded-full text-slate-300">0</span>
+            </button>
+
+            <!-- 頁籤 2: 30天即將到期追蹤 -->
+            <button onclick="switchTab('expiring')" id="tab-btn-expiring" class="px-4 py-2 font-medium flex items-center gap-2 border-b-2 border-transparent text-slate-400 hover:text-slate-200 transition">
+                <i class="fa-solid fa-triangle-exclamation text-amber-500"></i>
+                <span>即將到期追蹤</span>
+                <span id="tab-badge-expiring" class="text-[10px] bg-amber-500/20 text-amber-300 px-1.5 py-0.2 rounded-full font-bold">0</span>
+            </button>
+
+            <!-- 頁籤 3: 營運報表與統計 -->
+            <button onclick="switchTab('reports')" id="tab-btn-reports" class="px-4 py-2 font-medium flex items-center gap-2 border-b-2 border-transparent text-slate-400 hover:text-slate-200 transition">
+                <i class="fa-solid fa-chart-pie text-sky-400"></i>
+                <span>統計報表分析</span>
+            </button>
+        </div>
+
+        <div class="text-[11px] text-slate-400 hidden lg:flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+            <span>雲端資料庫已就緒</span>
+        </div>
+    </nav>
+
+    <!-- ==================== 工作區容器 (雙欄: 左側側邊欄 + 中央主內容) ==================== -->
+    <div class="flex-1 flex overflow-hidden">
+
+        <!-- ===== 左側側邊欄 (Ragic Quick Filters & Tree) ===== -->
+        <aside id="sidebar" class="w-60 bg-white border-r border-slate-200 flex flex-col shrink-0 transition-all duration-200">
+            <!-- 側邊欄頂部標題 -->
+            <div class="p-3 border-b border-slate-100 flex items-center justify-between text-xs font-bold text-slate-700">
+                <span class="flex items-center gap-1.5">
+                    <i class="fa-solid fa-filter text-slate-400"></i>
+                    快速篩選檢視
+                </span>
+                <button onclick="resetFilters()" class="text-[11px] text-slate-400 hover:text-red-600 font-normal">重設</button>
+            </div>
+
+            <!-- 側邊欄篩選分類樹 -->
+            <div class="p-3 overflow-y-auto custom-scrollbar flex-1 space-y-4 text-xs">
+                <!-- 保固狀態分組 -->
+                <div>
+                    <div class="font-semibold text-slate-500 text-[11px] uppercase tracking-wider mb-1.5">保固狀態</div>
+                    <ul class="space-y-0.5">
+                        <li>
+                            <button onclick="applyStatusFilter('all')" id="filter-status-all" class="w-full text-left px-2.5 py-1.5 rounded flex items-center justify-between font-medium bg-red-50 text-red-700">
+                                <span>全部資料</span>
+                                <span id="side-count-total" class="text-[10px] bg-white px-1.5 py-0.5 rounded border border-red-200">0</span>
+                            </button>
+                        </li>
+                        <li>
+                            <button onclick="applyStatusFilter('保固中')" id="filter-status-active" class="w-full text-left px-2.5 py-1.5 rounded flex items-center justify-between text-slate-600 hover:bg-slate-100">
+                                <span class="flex items-center gap-1.5">
+                                    <span class="w-2 h-2 rounded-full bg-emerald-500"></span> 保固中
+                                </span>
+                                <span id="side-count-active" class="text-[10px] text-slate-400">0</span>
+                            </button>
+                        </li>
+                        <li>
+                            <button onclick="applyStatusFilter('即將到期')" id="filter-status-expiring" class="w-full text-left px-2.5 py-1.5 rounded flex items-center justify-between text-slate-600 hover:bg-slate-100">
+                                <span class="flex items-center gap-1.5 text-amber-600 font-medium">
+                                    <i class="fa-solid fa-clock text-[11px]"></i> 即將到期
+                                </span>
+                                <span id="side-count-expiring" class="text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded font-bold">0</span>
+                            </button>
+                        </li>
+                        <li>
+                            <button onclick="applyStatusFilter('已過期')" id="filter-status-expired" class="w-full text-left px-2.5 py-1.5 rounded flex items-center justify-between text-slate-600 hover:bg-slate-100">
+                                <span class="flex items-center gap-1.5 text-slate-400">
+                                    <span class="w-2 h-2 rounded-full bg-slate-300"></span> 已過期
+                                </span>
+                                <span id="side-count-expired" class="text-[10px] text-slate-400">0</span>
+                            </button>
+                        </li>
+                    </ul>
+                </div>
+
+                <!-- 業務人員分組 -->
+                <div>
+                    <div class="font-semibold text-slate-500 text-[11px] uppercase tracking-wider mb-1.5">業務負責人</div>
+                    <ul id="sales-rep-list" class="space-y-0.5">
+                        <!-- 動態生成業務清單 -->
+                    </ul>
+                </div>
+
+                <!-- AI 推薦任務卡片 -->
+                <div class="p-2.5 rounded-lg bg-gradient-to-br from-red-50 to-orange-50 border border-red-100 text-xs">
+                    <div class="font-bold text-red-800 flex items-center gap-1 text-[11px]">
+                        <i class="fa-solid fa-lightbulb text-amber-500"></i> AI Agent 建議
+                    </div>
+                    <p class="text-[11px] text-slate-600 mt-1 leading-snug">
+                        系統已啟用每日保固到期自動檢查。點擊下方可快速產生主管彙整週報。
+                    </p>
+                    <button onclick="triggerAiPreset('請幫我產出本週的進銷存與保固彙整週報')" class="mt-2 w-full py-1 bg-white hover:bg-red-50 text-red-600 border border-red-200 rounded text-[11px] font-medium transition shadow-2xs">
+                        產出本週彙整週報
+                    </button>
+                </div>
+            </div>
+        </aside>
+
+        <!-- ===== 中央主內容視窗 ===== -->
+        <main class="flex-1 flex flex-col bg-slate-100 overflow-hidden relative">
+
+            <!-- ============================== 視圖 A: 列表頁 (Listing Page) ============================== -->
+            <div id="view-listing" class="flex-1 flex flex-col overflow-hidden">
+                
+                <!-- 列表頂部工具列 (Ragic 經典 Action Bar) -->
+                <div class="bg-white border-b border-slate-200 px-4 py-2.5 flex flex-wrap items-center justify-between gap-2 z-10 shadow-2xs">
+                    <div class="flex items-center space-x-2">
+                        <!-- ＋ 新增資料按鈕 (Ragic 紅色招牌按鈕) -->
+                        <button onclick="openFormForNew()" class="bg-red-600 hover:bg-red-700 text-white px-3.5 py-1.5 rounded text-xs font-semibold flex items-center gap-1.5 shadow-xs transition">
+                            <i class="fa-solid fa-plus text-xs"></i>
+                            <span>＋ 新增</span>
+                        </button>
+
+                        <!-- 工具選單 (Ragic 經典下拉 Tools) -->
+                        <div class="relative inline-block text-left" id="tools-dropdown-container">
+                            <button onclick="toggleToolsMenu()" class="bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 px-3 py-1.5 rounded text-xs font-medium flex items-center gap-1.5 transition">
+                                <i class="fa-solid fa-gear text-slate-400"></i>
+                                <span>工具</span>
+                                <i class="fa-solid fa-chevron-down text-[10px] text-slate-400"></i>
+                            </button>
+                            <!-- 下拉清單 -->
+                            <div id="tools-menu" class="hidden absolute left-0 mt-1 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 divide-y divide-slate-100 z-50 text-xs">
+                                <div class="py-1">
+                                    <button onclick="openImportModal(); toggleToolsMenu()" class="w-full text-left px-3 py-2 text-slate-700 hover:bg-slate-100 flex items-center gap-2">
+                                        <i class="fa-solid fa-file-import text-blue-600 w-4"></i>
+                                        <span>匯入資料 (Excel)</span>
+                                    </button>
+                                    <a href="/api/export-excel" onclick="toggleToolsMenu()" class="w-full text-left px-3 py-2 text-slate-700 hover:bg-slate-100 flex items-center gap-2">
+                                        <i class="fa-solid fa-file-export text-emerald-600 w-4"></i>
+                                        <span>匯出此表 (Excel)</span>
+                                    </a>
+                                    <a href="/api/export-template" download onclick="toggleToolsMenu()" class="w-full text-left px-3 py-2 text-slate-700 hover:bg-slate-100 flex items-center gap-2">
+                                        <i class="fa-solid fa-file-lines text-slate-500 w-4"></i>
+                                        <span>下載標準空白範本</span>
+                                    </a>
+                                </div>
+                                <div class="py-1">
+                                    <button onclick="autoRecalculateStatus(); toggleToolsMenu()" class="w-full text-left px-3 py-2 text-slate-700 hover:bg-slate-100 flex items-center gap-2">
+                                        <i class="fa-solid fa-arrows-rotate text-sky-600 w-4"></i>
+                                        <span>重新計算所有保固狀態</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 篩選重設標籤顯示 -->
+                        <span id="active-filter-indicator" class="hidden text-xs bg-slate-100 text-slate-600 px-2 py-1 rounded flex items-center gap-1">
+                            <span id="active-filter-text">篩選中</span>
+                            <button onclick="resetFilters()" class="hover:text-red-600"><i class="fa-solid fa-xmark"></i></button>
+                        </span>
+                    </div>
+
+                    <!-- 搜尋與筆數計數 -->
+                    <div class="flex items-center space-x-3 text-xs">
+                        <div class="relative">
+                            <i class="fa-solid fa-magnifying-glass absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                            <input type="text" id="filter-search-input" oninput="debounceLoadContracts()" placeholder="在目前表中篩選..." 
+                                   class="pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-300 rounded text-xs focus:outline-none focus:border-red-500 w-44 sm:w-56">
+                        </div>
+                        <div class="text-slate-500">
+                            共 <span id="record-count" class="font-bold text-slate-800">0</span> 筆
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 試算表表格區域 (Ragic Spreadsheet View) -->
+                <div class="flex-1 overflow-auto custom-scrollbar p-3">
+                    <div class="bg-white border border-slate-300 shadow-xs rounded">
+                        <table class="w-full border-collapse ragic-grid text-xs text-left">
+                            <thead class="bg-slate-100 text-slate-700 font-semibold select-none sticky top-0 shadow-2xs">
+                                <tr>
+                                    <th class="py-2 px-2 text-center w-12 bg-slate-200/80 text-slate-500">#</th>
+                                    <th class="py-2 px-2.5 w-16 text-center">編號</th>
+                                    <th class="py-2 px-3 min-w-[160px]">公司名稱</th>
+                                    <th class="py-2 px-3 min-w-[100px]">業務</th>
+                                    <th class="py-2 px-3 min-w-[100px]">SI</th>
+                                    <th class="py-2 px-3 min-w-[180px]">採購內容</th>
+                                    <th class="py-2 px-3 min-w-[130px]">S/O No.</th>
+                                    <th class="py-2 px-3 min-w-[130px]">授權證號</th>
+                                    <th class="py-2 px-3 min-w-[90px]">授權數量</th>
+                                    <th class="py-2 px-3 min-w-[130px]">保固證號</th>
+                                    <th class="py-2 px-3 min-w-[110px]">保固到期日</th>
+                                    <th class="py-2 px-3 text-center w-28">保固狀態</th>
+                                    <th class="py-2 px-3 min-w-[100px]">保固工程師</th>
+                                    <th class="py-2 px-2.5 text-center w-20">操作</th>
+                                </tr>
+                            </thead>
+                            <tbody id="contracts-table-body" class="divide-y divide-slate-200">
+                                <!-- 動態填入資料 -->
+                            </tbody>
+                        </table>
+
+                        <!-- 載入中動畫 -->
+                        <div id="loading-spinner" class="py-16 text-center text-slate-400">
+                            <i class="fa-solid fa-circle-notch fa-spin text-2xl text-red-600"></i>
+                            <p class="mt-2 text-xs">正在載入試算表資料庫...</p>
+                        </div>
+
+                        <!-- 空資料提示 -->
+                        <div id="empty-state" class="hidden py-16 text-center text-slate-400">
+                            <i class="fa-regular fa-folder-open text-4xl text-slate-300"></i>
+                            <p class="mt-2 text-sm font-semibold text-slate-600">查無相符資料</p>
+                            <p class="text-xs text-slate-400 mt-0.5">點擊上方「＋ 新增」或點擊「重設篩選」</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 列表底部狀態列 -->
+                <div class="bg-white border-t border-slate-200 px-4 py-1.5 flex items-center justify-between text-[11px] text-slate-500">
+                    <div class="flex items-center gap-3">
+                        <span>💡 <strong class="text-slate-700">小提示：</strong> 點擊任何資料列或「公司名稱」，即可開啟 Ragic 經典【表單頁】進行細部檢視與編輯。</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                        <span>即時儲存同步</span>
+                    </div>
+                </div>
+
+            </div>
+
+
+            <!-- ============================== 視圖 B: Ragic 表單頁 (Form Page) ============================== -->
+            <div id="view-form" class="hidden flex-1 flex flex-col overflow-hidden bg-slate-200">
+
+                <!-- 表單頂部動作列 (Ragic Form Action Bar) -->
+                <div class="bg-white border-b border-slate-300 px-4 py-2.5 flex items-center justify-between shadow-2xs z-10">
+                    <div class="flex items-center space-x-2">
+                        <button onclick="closeFormPage()" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded text-xs font-semibold flex items-center gap-1.5 transition">
+                            <i class="fa-solid fa-arrow-left"></i>
+                            <span>返回列表</span>
+                        </button>
+
+                        <button onclick="submitFormPage()" class="px-4 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded text-xs font-semibold flex items-center gap-1.5 shadow-xs transition">
+                            <i class="fa-solid fa-floppy-disk"></i>
+                            <span>儲存表單</span>
+                        </button>
+
+                        <button onclick="deleteCurrentForm()" id="btn-form-delete" class="px-3 py-1.5 bg-white hover:bg-rose-50 text-rose-600 border border-rose-200 rounded text-xs font-medium flex items-center gap-1 transition">
+                            <i class="fa-regular fa-trash-can"></i>
+                            <span>刪除此單</span>
+                        </button>
+                    </div>
+
+                    <!-- 上一筆 / 下一筆切換導航 -->
+                    <div class="flex items-center space-x-2 text-xs">
+                        <button onclick="navigateForm(-1)" id="btn-prev-record" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded disabled:opacity-40" title="上一筆">
+                            <i class="fa-solid fa-chevron-left"></i> 上一筆
+                        </button>
+                        <span id="form-record-index" class="text-slate-500 font-medium">第 1 / 1 筆</span>
+                        <button onclick="navigateForm(1)" id="btn-next-record" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded disabled:opacity-40" title="下一筆">
+                            下一筆 <i class="fa-solid fa-chevron-right"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 表單主體紙張效果 (Ragic Sheet Paper) -->
+                <div class="flex-1 overflow-y-auto custom-scrollbar p-4 sm:p-6 flex justify-center">
+                    <div class="bg-white max-w-4xl w-full border border-slate-300 shadow-md rounded-md p-6 sm:p-8 space-y-6">
+
+                        <!-- 表單抬頭 Header -->
+                        <div class="border-b-2 border-slate-800 pb-3 flex flex-wrap items-center justify-between gap-3">
+                            <div>
+                                <div class="text-[11px] font-bold tracking-widest text-red-600 uppercase">FEIHONG ERP SYSTEM</div>
+                                <h2 class="text-xl font-bold text-slate-900 mt-0.5">授權與保固明細表 (Form)</h2>
+                                <p class="text-xs text-slate-400">標準進銷存、授權管理與售後保固服務工單</p>
+                            </div>
+                            <div class="text-right text-xs">
+                                <div class="font-mono text-slate-500">ID: <span id="form-display-id" class="font-bold text-slate-800">NEW</span></div>
+                                <div class="text-[11px] text-slate-400 mt-0.5" id="form-display-time">建立時間: 系統自動記錄</div>
+                            </div>
+                        </div>
+
+                        <!-- 表單隱藏欄位 -->
+                        <input type="hidden" id="form-field-id">
+
+                        <!-- Ragic 經典網格式表單填寫區 -->
+                        <div class="space-y-6 text-xs">
+
+                            <!-- 區塊 1: 客戶與採購資訊 -->
+                            <div>
+                                <div class="bg-slate-800 text-white px-3 py-1.5 font-bold text-xs rounded-t flex items-center justify-between">
+                                    <span>一、 客戶與採購基本資料</span>
+                                    <span class="text-[10px] text-slate-300 font-normal">必填欄位請確實輸入</span>
+                                </div>
+                                <table class="w-full ragic-form-table bg-white">
+                                    <tr>
+                                        <td class="ragic-form-label">編號 (Item No.)</td>
+                                        <td class="w-1/3">
+                                            <input type="text" id="f-item_no" placeholder="如 1-1, 2-1" class="w-full p-1.5 border border-slate-200 rounded focus:border-red-500 focus:outline-none font-mono">
+                                        </td>
+                                        <td class="ragic-form-label">公司名稱 <span class="text-red-500">*</span></td>
+                                        <td>
+                                            <input type="text" id="f-customer_name" required placeholder="如 上銀保經, 臺北榮總..." class="w-full p-1.5 border border-slate-200 rounded focus:border-red-500 focus:outline-none font-bold text-slate-900">
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td class="ragic-form-label">負責業務</td>
+                                        <td>
+                                            <input type="text" id="f-sales_rep" placeholder="如 Jenlin, Dennis" class="w-full p-1.5 border border-slate-200 rounded focus:border-red-500 focus:outline-none font-medium">
+                                        </td>
+                                        <td class="ragic-form-label">採購日期</td>
+                                        <td>
+                                            <input type="text" id="f-purchase_date" placeholder="YYYY/MM/DD" class="w-full p-1.5 border border-slate-200 rounded focus:border-red-500 focus:outline-none">
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td class="ragic-form-label">代理商</td>
+                                        <td>
+                                            <input type="text" id="f-agent" placeholder="代理商名稱" class="w-full p-1.5 border border-slate-200 rounded focus:border-red-500 focus:outline-none">
+                                        </td>
+                                        <td class="ragic-form-label">SI (系統整合商)</td>
+                                        <td>
+                                            <input type="text" id="f-si" placeholder="如 宏碁, 飛泓, 無" class="w-full p-1.5 border border-slate-200 rounded focus:border-red-500 focus:outline-none">
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td class="ragic-form-label">收款階段</td>
+                                        <td>
+                                            <input type="text" id="f-payment_stage" placeholder="全額 / 1-4期..." class="w-full p-1.5 border border-slate-200 rounded focus:border-red-500 focus:outline-none">
+                                        </td>
+                                        <td class="ragic-form-label">S/O No. (訂單號)</td>
+                                        <td>
+                                            <input type="text" id="f-so_no" placeholder="如 SO-20260316-01" class="w-full p-1.5 border border-slate-200 rounded focus:border-red-500 focus:outline-none font-mono">
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td class="ragic-form-label">採購內容</td>
+                                        <td colspan="3">
+                                            <input type="text" id="f-purchase_content" placeholder="如 400MAC+P360*2, MA一年..." class="w-full p-1.5 border border-slate-200 rounded focus:border-red-500 focus:outline-none font-medium">
+                                        </td>
+                                    </tr>
+                                </table>
+                            </div>
+
+                            <!-- 區塊 2: 授權規格明細 -->
+                            <div>
+                                <div class="bg-indigo-900 text-white px-3 py-1.5 font-bold text-xs rounded-t flex items-center justify-between">
+                                    <span>二、 授權規格明細 (License Specification)</span>
+                                </div>
+                                <table class="w-full ragic-form-table bg-white">
+                                    <tr>
+                                        <td class="ragic-form-label">授權證號</td>
+                                        <td class="w-1/3">
+                                            <input type="text" id="f-license_no" placeholder="LIC-2026-..." class="w-full p-1.5 border border-slate-200 rounded focus:border-red-500 focus:outline-none font-mono">
+                                        </td>
+                                        <td class="ragic-form-label">授權數量</td>
+                                        <td>
+                                            <input type="text" id="f-license_qty" placeholder="如 70U, 400MAC" class="w-full p-1.5 border border-slate-200 rounded focus:border-red-500 focus:outline-none">
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td class="ragic-form-label">授權期間</td>
+                                        <td>
+                                            <input type="text" id="f-license_period" placeholder="如 1年 / 永久" class="w-full p-1.5 border border-slate-200 rounded focus:border-red-500 focus:outline-none">
+                                        </td>
+                                        <td class="ragic-form-label">授權到期</td>
+                                        <td>
+                                            <input type="text" id="f-license_expiry" placeholder="YYYY/MM/DD 或 永久" class="w-full p-1.5 border border-slate-200 rounded focus:border-red-500 focus:outline-none">
+                                        </td>
+                                    </tr>
+                                </table>
+                            </div>
+
+                            <!-- 區塊 3: 保固與售後明細 -->
+                            <div>
+                                <div class="bg-emerald-800 text-white px-3 py-1.5 font-bold text-xs rounded-t flex items-center justify-between">
+                                    <span>三、 保固與工程資訊 (Warranty & Engineering)</span>
+                                    <span class="text-[10px] text-emerald-200 font-normal">狀態將由系統依到期日即時判定</span>
+                                </div>
+                                <table class="w-full ragic-form-table bg-white">
+                                    <tr>
+                                        <td class="ragic-form-label">保固證號</td>
+                                        <td class="w-1/3">
+                                            <input type="text" id="f-warranty_no" placeholder="WAR-2026-..." class="w-full p-1.5 border border-slate-200 rounded focus:border-red-500 focus:outline-none font-mono">
+                                        </td>
+                                        <td class="ragic-form-label">保固期間</td>
+                                        <td>
+                                            <input type="text" id="f-warranty_period" placeholder="如 1年, 3年" class="w-full p-1.5 border border-slate-200 rounded focus:border-red-500 focus:outline-none">
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td class="ragic-form-label">保固到期日</td>
+                                        <td>
+                                            <input type="text" id="f-warranty_expiry" placeholder="YYYY/MM/DD" class="w-full p-1.5 border border-slate-200 rounded focus:border-red-500 focus:outline-none font-semibold">
+                                        </td>
+                                        <td class="ragic-form-label">保固狀態</td>
+                                        <td>
+                                            <div class="flex items-center gap-2">
+                                                <select id="f-warranty_status" class="p-1.5 border border-slate-200 rounded focus:border-red-500 focus:outline-none bg-slate-50 font-bold">
+                                                    <option value="保固中">保固中</option>
+                                                    <option value="即將到期">即將到期</option>
+                                                    <option value="已過期">已過期</option>
+                                                    <option value="永久授權">永久授權</option>
+                                                    <option value="維護終止">維護終止</option>
+                                                </select>
+                                                <span class="text-[11px] text-slate-400">系統自動同步</span>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td class="ragic-form-label">保固工程師</td>
+                                        <td>
+                                            <input type="text" id="f-warranty_engineer" placeholder="負責工程師姓名" class="w-full p-1.5 border border-slate-200 rounded focus:border-red-500 focus:outline-none">
+                                        </td>
+                                        <td class="ragic-form-label">出貨規章</td>
+                                        <td>
+                                            <input type="text" id="f-shipping_regulation" placeholder="標準出貨規章 A..." class="w-full p-1.5 border border-slate-200 rounded focus:border-red-500 focus:outline-none">
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td class="ragic-form-label">備註說明</td>
+                                        <td colspan="3">
+                                            <textarea id="f-remark" rows="3" placeholder="客戶特殊需求、歷史簽核備註、保固歷程..." class="w-full p-2 border border-slate-200 rounded focus:border-red-500 focus:outline-none"></textarea>
+                                        </td>
+                                    </tr>
+                                </table>
+                            </div>
+
+                        </div>
+
+                        <!-- 表單底部署名與按鈕 -->
+                        <div class="pt-4 border-t border-slate-200 flex items-center justify-between">
+                            <div class="text-[11px] text-slate-400">
+                                飛泓科技股份有限公司 • 雲端進銷存資料庫
+                            </div>
+                            <div class="flex items-center space-x-2">
+                                <button type="button" onclick="closeFormPage()" class="px-3.5 py-1.5 border border-slate-300 rounded text-xs text-slate-600 hover:bg-slate-50">取消</button>
+                                <button type="button" onclick="submitFormPage()" class="px-5 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded text-xs font-semibold shadow-xs">儲存表單</button>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
+            </div>
+
+
+            <!-- ============================== 視圖 C: 統計報表頁籤 (Reports Tab) ============================== -->
+            <div id="view-reports" class="hidden flex-1 overflow-y-auto custom-scrollbar p-6 space-y-6">
+                <!-- 統計看板 KPI -->
+                <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div class="bg-white p-4 rounded-lg border border-slate-200 shadow-2xs">
+                        <div class="text-[11px] text-slate-500 font-semibold uppercase">總客戶明細筆數</div>
+                        <div id="rep-total" class="text-3xl font-bold text-slate-800 mt-1">0</div>
+                        <div class="text-[11px] text-slate-400 mt-0.5">歷年累積所有合約</div>
+                    </div>
+                    <div class="bg-white p-4 rounded-lg border border-slate-200 shadow-2xs">
+                        <div class="text-[11px] text-emerald-600 font-semibold uppercase flex items-center gap-1">
+                            <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> 正常保固中
+                        </div>
+                        <div id="rep-active" class="text-3xl font-bold text-emerald-600 mt-1">0</div>
+                        <div class="text-[11px] text-slate-400 mt-0.5">提供維護服務中</div>
+                    </div>
+                    <div class="bg-white p-4 rounded-lg border border-slate-200 shadow-2xs">
+                        <div class="text-[11px] text-amber-600 font-semibold uppercase flex items-center gap-1">
+                            <i class="fa-solid fa-clock"></i> 30天即將到期
+                        </div>
+                        <div id="rep-expiring" class="text-3xl font-bold text-amber-600 mt-1">0</div>
+                        <div class="text-[11px] text-slate-400 mt-0.5">急需業務聯絡續約</div>
+                    </div>
+                    <div class="bg-white p-4 rounded-lg border border-slate-200 shadow-2xs">
+                        <div class="text-[11px] text-slate-500 font-semibold uppercase">已過期合約</div>
+                        <div id="rep-expired" class="text-3xl font-bold text-slate-600 mt-1">0</div>
+                        <div class="text-[11px] text-slate-400 mt-0.5">歷史封存/未續約</div>
+                    </div>
+                </div>
+
+                <!-- 業務與到期分佈圖表區 -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="bg-white p-5 rounded-lg border border-slate-200 shadow-2xs">
+                        <h4 class="font-bold text-slate-800 text-sm mb-3 flex items-center gap-2">
+                            <i class="fa-solid fa-user-tie text-red-600"></i> 各業務案件量佔比
+                        </h4>
+                        <div id="reps-bars" class="space-y-3 text-xs">
+                            <!-- 動態填入長條圖 -->
+                        </div>
+                    </div>
+
+                    <div class="bg-white p-5 rounded-lg border border-slate-200 shadow-2xs">
+                        <h4 class="font-bold text-slate-800 text-sm mb-3 flex items-center gap-2">
+                            <i class="fa-solid fa-wand-magic-sparkles text-red-600"></i> AI Agent 營運診斷建議
+                        </h4>
+                        <div class="p-3 bg-red-50/60 rounded border border-red-100 text-xs text-slate-700 space-y-2 leading-relaxed">
+                            <p>🤖 <strong>AI 智慧分析結果：</strong></p>
+                            <p>• 檢測到系統內有即將到期之客戶，建議由負責業務於到期日前 14 天產出維護報價單。</p>
+                            <p>• 若需要進行完整週報彙整，您可以隨時點擊右下角 AI Agent 助理，一鍵產生主管週報。</p>
+                            <button onclick="triggerAiPreset('請幫我產出本週的進銷存與保固彙整週報')" class="mt-2 text-xs bg-red-600 text-white px-3 py-1.5 rounded font-medium shadow-2xs hover:bg-red-700 transition">
+                                立即生成主管分析週報
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <!-- ==================== 右下角懸浮 AI AGENT 抽屜面板 (Ragic AI Agent) ==================== -->
+    <!-- 懸浮展開按鈕 -->
+    <button onclick="toggleAiDrawer()" id="ai-floating-btn" class="fixed bottom-6 right-6 z-40 bg-red-600 hover:bg-red-700 text-white px-4 py-2.5 rounded-full shadow-lg flex items-center gap-2 transition hover:scale-105 select-none">
+        <i class="fa-solid fa-wand-magic-sparkles text-sm animate-spin-slow"></i>
+        <span class="text-xs font-bold tracking-wide">AI Agent 助理</span>
+        <span class="w-2 h-2 rounded-full bg-emerald-300 animate-pulse"></span>
+    </button>
+
+    <!-- AI Agent 側邊滑出抽屜 -->
+    <div id="ai-drawer" class="fixed top-0 right-0 bottom-0 w-full sm:w-[420px] bg-white shadow-2xl z-50 flex flex-col transform translate-x-full transition-transform duration-300 border-l border-slate-200">
+        <!-- AI 抽屜頂部 -->
+        <div class="bg-slate-900 text-white p-4 flex items-center justify-between border-b border-slate-800">
+            <div class="flex items-center gap-2.5">
+                <span class="w-8 h-8 rounded-lg bg-red-600 flex items-center justify-center text-white shadow-xs">
+                    <i class="fa-solid fa-robot text-sm"></i>
+                </span>
+                <div>
+                    <h3 class="font-bold text-sm text-slate-100 flex items-center gap-1.5">
+                        Ragic 內建 AI Agent
+                        <span class="text-[10px] bg-red-600 text-white px-1.5 py-0.2 rounded font-normal">Active</span>
+                    </h3>
+                    <p class="text-[11px] text-slate-400">24 小時替你查資料、抓異常、產報表</p>
+                </div>
+            </div>
+            <button onclick="toggleAiDrawer()" class="text-slate-400 hover:text-white p-1.5 rounded-lg hover:bg-slate-800 transition">
+                <i class="fa-solid fa-xmark text-base"></i>
+            </button>
+        </div>
+
+        <!-- AI 抽屜快捷指令列 -->
+        <div class="bg-slate-50 p-2.5 border-b border-slate-200">
+            <div class="text-[11px] text-slate-500 font-semibold mb-1.5 flex items-center gap-1">
+                <i class="fa-solid fa-bolt text-amber-500"></i> 常見 AI 任務快捷指令：
+            </div>
+            <div class="grid grid-cols-2 gap-1.5 text-xs">
+                <button onclick="triggerAiPreset('抓出 30 天內即將到期的客戶與合約')" class="p-1.5 bg-white hover:bg-red-50 hover:text-red-700 text-slate-700 border border-slate-200 rounded text-left transition truncate">
+                    🚨 抓出即將到期合約
+                </button>
+                <button onclick="triggerAiPreset('檢查是否有尚未填寫 S/O No. 或到期日的異常資料')" class="p-1.5 bg-white hover:bg-red-50 hover:text-red-700 text-slate-700 border border-slate-200 rounded text-left transition truncate">
+                    ⚠️ 檢查缺漏與異常
+                </button>
+                <button onclick="triggerAiPreset('請幫我產出本週的進銷存與保固彙整週報')" class="p-1.5 bg-white hover:bg-red-50 hover:text-red-700 text-slate-700 border border-slate-200 rounded text-left transition truncate">
+                    📊 一鍵生成彙整週報
+                </button>
+                <button onclick="triggerAiPreset('分析目前各業務的合約分佈與表現')" class="p-1.5 bg-white hover:bg-red-50 hover:text-red-700 text-slate-700 border border-slate-200 rounded text-left transition truncate">
+                    👥 業務合約佔比分析
+                </button>
+            </div>
+        </div>
+
+        <!-- AI 對話內容滾動區 -->
+        <div id="ai-messages" class="flex-1 p-4 overflow-y-auto custom-scrollbar space-y-4 text-xs">
+            <!-- 系統初始歡迎訊息 -->
+            <div class="flex items-start gap-2.5">
+                <div class="w-7 h-7 rounded-full bg-red-600 text-white flex items-center justify-center shrink-0 text-xs">
+                    <i class="fa-solid fa-robot"></i>
+                </div>
+                <div class="bg-slate-100 rounded-2xl rounded-tl-none p-3 text-slate-800 leading-relaxed max-w-[85%] border border-slate-200/60">
+                    您好！我是 Ragic 內建的 <strong>AI Agent</strong>。<br><br>
+                    我能直接讀取系統中所有的客戶採購、授權證號與保固資料。您可以隨時指派我：
+                    <ul class="list-disc pl-4 mt-1.5 space-y-0.5 text-slate-600">
+                        <li>查詢特定的客戶或證號</li>
+                        <li>揪出未填 S/O No. 或未定到期日的異常資料</li>
+                        <li>生成本週進銷存營運週報</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- AI 輸入框 -->
+        <div class="p-3 border-t border-slate-200 bg-white">
+            <form onsubmit="handleSendAiMessage(event)" class="flex gap-2">
+                <input type="text" id="ai-input" placeholder="問問 AI Agent (例如: 查一下松下產業)..." 
+                       class="flex-1 text-xs px-3 py-2 border border-slate-300 rounded focus:outline-none focus:border-red-500">
+                <button type="submit" id="ai-submit-btn" class="bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded text-xs font-semibold transition">
+                    <i class="fa-solid fa-paper-plane"></i>
+                </button>
+            </form>
+        </div>
+    </div>
+
+
+    <!-- ==================== 模態視窗: Excel 匯入 (Ragic Import Style) ==================== -->
+    <div id="import-modal" class="fixed inset-0 z-50 hidden bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+        <div class="bg-white rounded-lg shadow-2xl max-w-lg w-full p-6 space-y-4 border border-slate-200">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+                <h3 class="text-base font-bold text-slate-900 flex items-center gap-2">
+                    <i class="fa-solid fa-file-excel text-emerald-600"></i>
+                    匯入資料 (Excel .xlsx)
+                </h3>
+                <button onclick="closeImportModal()" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+
+            <p class="text-xs text-slate-600 leading-relaxed">
+                Ragic 智慧匯入引擎會自動對應表格欄位（支援 20 欄位如：編號、公司名稱、授權證號、保固到期日...）。
+            </p>
+
+            <div class="border-2 border-dashed border-slate-300 hover:border-red-500 rounded-lg p-6 text-center cursor-pointer transition bg-slate-50 hover:bg-red-50/20" onclick="document.getElementById('excel-file-input').click()">
+                <i class="fa-solid fa-cloud-arrow-up text-3xl text-red-600 mb-2"></i>
+                <p class="text-xs font-semibold text-slate-700" id="file-label">點擊選取或拖曳 Excel 檔案</p>
+                <p class="text-[11px] text-slate-400 mt-0.5">支援標準 .xlsx 格式</p>
+                <input type="file" id="excel-file-input" accept=".xlsx, .xls" class="hidden" onchange="handleFileSelected(event)">
+            </div>
+
+            <div class="flex items-center justify-between text-xs text-slate-500">
+                <a href="/api/export-template" download class="text-red-600 hover:underline flex items-center gap-1 font-medium">
+                    <i class="fa-solid fa-download"></i> 下載標準空白範本
+                </a>
+            </div>
+
+            <div id="import-msg" class="hidden text-xs p-3 rounded"></div>
+
+            <div class="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+                <button type="button" onclick="closeImportModal()" class="px-3.5 py-1.5 text-xs text-slate-600 border border-slate-300 rounded hover:bg-slate-50">取消</button>
+                <button type="button" id="btn-submit-import" onclick="submitImportExcel()" disabled class="px-4 py-1.5 text-xs font-semibold text-white bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed rounded shadow-xs">
+                    開始匯入
+                </button>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- ==================== 前端邏輯 JavaScript (Ragic 互動體驗) ==================== -->
+    <script>
+        // 全域狀態
+        let allContracts = [];
+        let filteredContracts = [];
+        let currentTab = 'contracts';
+        let currentStatusFilter = 'all';
+        let currentSalesFilter = 'all';
+        let currentFormIndex = -1;
+        let selectedFile = null;
+        let debounceTimer = null;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            loadStats();
+            loadContracts();
+
+            // 點擊空白處關閉工具下拉選單
+            document.addEventListener('click', (e) => {
+                const container = document.getElementById('tools-dropdown-container');
+                if (container && !container.contains(e.target)) {
+                    document.getElementById('tools-menu').classList.add('hidden');
+                }
+            });
+        });
+
+        // 頁籤切換
+        function switchTab(tab) {
+            currentTab = tab;
+            const tabs = ['contracts', 'expiring', 'reports'];
+            tabs.forEach(t => {
+                const btn = document.getElementById(`tab-btn-${t}`);
+                if (t === tab) {
+                    btn.className = 'px-4 py-2 font-medium flex items-center gap-2 border-b-2 border-red-500 text-white bg-slate-900/60 rounded-t transition';
+                } else {
+                    btn.className = 'px-4 py-2 font-medium flex items-center gap-2 border-b-2 border-transparent text-slate-400 hover:text-slate-200 transition';
+                }
+            });
+
+            if (tab === 'contracts') {
+                document.getElementById('view-listing').classList.remove('hidden');
+                document.getElementById('view-form').classList.add('hidden');
+                document.getElementById('view-reports').classList.add('hidden');
+                resetFilters();
+            } else if (tab === 'expiring') {
+                document.getElementById('view-listing').classList.remove('hidden');
+                document.getElementById('view-form').classList.add('hidden');
+                document.getElementById('view-reports').classList.add('hidden');
+                applyStatusFilter('即將到期');
+            } else if (tab === 'reports') {
+                document.getElementById('view-listing').classList.add('hidden');
+                document.getElementById('view-form').classList.add('hidden');
+                document.getElementById('view-reports').classList.remove('hidden');
+                renderReportsView();
+            }
+        }
+
+        // 載入統計
+        async function loadStats() {
+            try {
+                const res = await fetch('/api/stats');
+                const data = await res.json();
+                
+                // 側邊欄計數
+                document.getElementById('side-count-total').innerText = data.total;
+                document.getElementById('side-count-active').innerText = data.active;
+                document.getElementById('side-count-expiring').innerText = data.expiring;
+                document.getElementById('side-count-expired').innerText = data.expired;
+
+                // 頁籤 Badge
+                document.getElementById('tab-badge-contracts').innerText = data.total;
+                document.getElementById('tab-badge-expiring').innerText = data.expiring;
+
+                // 報表 KPI
+                document.getElementById('rep-total').innerText = data.total;
+                document.getElementById('rep-active').innerText = data.active;
+                document.getElementById('rep-expiring').innerText = data.expiring;
+                document.getElementById('rep-expired').innerText = data.expired;
+
+                // 渲染業務清單在側邊欄
+                const salesList = document.getElementById('sales-rep-list');
+                salesList.innerHTML = `
+                    <li>
+                        <button onclick="applySalesFilter('all')" id="filter-sales-all" class="w-full text-left px-2.5 py-1.5 rounded flex items-center justify-between font-medium text-red-700 bg-red-50">
+                            <span>所有業務</span>
+                        </button>
+                    </li>
+                `;
+                data.sales_reps.forEach(rep => {
+                    const li = document.createElement('li');
+                    li.innerHTML = `
+                        <button onclick="applySalesFilter('${rep}')" id="filter-sales-${rep}" class="w-full text-left px-2.5 py-1.5 rounded flex items-center justify-between text-slate-600 hover:bg-slate-100">
+                            <span class="truncate">👤 ${rep}</span>
+                        </button>
+                    `;
+                    salesList.appendChild(li);
+                });
+
+            } catch (err) {
+                console.error("載入統計失敗", err);
+            }
+        }
+
+        // 載入契約清單 (列表頁)
+        async function loadContracts() {
+            const tableBody = document.getElementById('contracts-table-body');
+            const loading = document.getElementById('loading-spinner');
+            const emptyState = document.getElementById('empty-state');
+            const query = document.getElementById('filter-search-input').value.trim();
+
+            loading.classList.remove('hidden');
+            emptyState.classList.add('hidden');
+            tableBody.innerHTML = '';
+
+            try {
+                const params = new URLSearchParams();
+                if (query) params.append('q', query);
+                if (currentStatusFilter && currentStatusFilter !== 'all') params.append('status', currentStatusFilter);
+                if (currentSalesFilter && currentSalesFilter !== 'all') params.append('sales_rep', currentSalesFilter);
+
+                const res = await fetch(`/api/contracts?${params.toString()}`);
+                const data = await res.json();
+                allContracts = data;
+                filteredContracts = data;
+
+                loading.classList.add('hidden');
+                document.getElementById('record-count').innerText = data.length;
+
+                if (data.length === 0) {
+                    emptyState.classList.remove('hidden');
+                    return;
+                }
+
+                data.forEach((item, index) => {
+                    const tr = document.createElement('tr');
+                    tr.className = 'hover:bg-amber-50/50 cursor-pointer transition select-none group';
+                    tr.onclick = (e) => {
+                        // 如果點擊的不是特定按鈕，開啟表單頁
+                        if (!e.target.closest('button')) {
+                            openFormPageByIndex(index);
+                        }
+                    };
+
+                    let badge = '';
+                    if (item.warranty_status === '保固中') {
+                        badge = `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>保固中</span>`;
+                    } else if (item.warranty_status === '即將到期') {
+                        badge = `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-bold bg-amber-50 text-amber-800 border border-amber-300 animate-pulse"><i class="fa-solid fa-clock text-[10px]"></i>即將到期</span>`;
+                    } else if (item.warranty_status === '已過期') {
+                        badge = `<span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-slate-100 text-slate-500 border border-slate-200">已過期</span>`;
+                    } else {
+                        badge = `<span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-sky-50 text-sky-700 border border-sky-200">${item.warranty_status || '未知'}</span>`;
+                    }
+
+                    tr.innerHTML = `
+                        <td class="py-2 px-2 text-center text-slate-400 bg-slate-50 group-hover:bg-amber-100/50 font-mono text-[11px]">${index + 1}</td>
+                        <td class="py-2 px-2.5 text-center font-mono font-semibold text-slate-600">${item.item_no || '-'}</td>
+                        <td class="py-2 px-3">
+                            <span class="font-bold text-slate-900 group-hover:text-red-700 transition">${item.customer_name}</span>
+                            ${item.agent ? `<span class="text-[10px] text-slate-400 block">代理: ${item.agent}</span>` : ''}
+                        </td>
+                        <td class="py-2 px-3 text-slate-700 font-medium">${item.sales_rep || '-'}</td>
+                        <td class="py-2 px-3 text-slate-600">${item.si || '-'}</td>
+                        <td class="py-2 px-3 text-slate-700 truncate max-w-xs" title="${item.purchase_content || ''}">${item.purchase_content || '-'}</td>
+                        <td class="py-2 px-3 font-mono text-slate-600">${item.so_no || '-'}</td>
+                        <td class="py-2 px-3 font-mono text-indigo-700 font-medium">${item.license_no || '-'}</td>
+                        <td class="py-2 px-3 text-slate-600">${item.license_qty || '-'}</td>
+                        <td class="py-2 px-3 font-mono text-slate-700">${item.warranty_no || '-'}</td>
+                        <td class="py-2 px-3 font-medium text-slate-800">${item.warranty_expiry || '-'}</td>
+                        <td class="py-2 px-3 text-center">${badge}</td>
+                        <td class="py-2 px-3 text-slate-600">${item.warranty_engineer || '-'}</td>
+                        <td class="py-2 px-2.5 text-center">
+                            <button onclick="openFormPageByIndex(${index})" title="開啟 Ragic 表單頁" class="text-red-600 hover:text-red-800 font-semibold text-xs px-2 py-0.5 hover:bg-red-50 rounded">
+                                開啟
+                            </button>
+                        </td>
+                    `;
+                    tableBody.appendChild(tr);
+                });
+
+            } catch (err) {
+                loading.classList.add('hidden');
+                console.error("載入失敗", err);
+            }
+        }
+
+        function debounceLoadContracts() {
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(loadContracts, 250);
+        }
+
+        function handleTopSearch(val) {
+            document.getElementById('filter-search-input').value = val;
+            debounceLoadContracts();
+        }
+
+        // 側邊欄狀態篩選
+        function applyStatusFilter(status) {
+            currentStatusFilter = status;
+            ['all', 'active', 'expiring', 'expired'].forEach(s => {
+                const btn = document.getElementById(`filter-status-${s}`);
+                if (!btn) return;
+                const matchKey = (s === 'active' ? '保固中' : (s === 'expiring' ? '即將到期' : (s === 'expired' ? '已過期' : 'all')));
+                if (matchKey === status) {
+                    btn.className = 'w-full text-left px-2.5 py-1.5 rounded flex items-center justify-between font-bold bg-red-50 text-red-700';
+                } else {
+                    btn.className = 'w-full text-left px-2.5 py-1.5 rounded flex items-center justify-between text-slate-600 hover:bg-slate-100';
+                }
+            });
+            updateFilterIndicator();
+            loadContracts();
+        }
+
+        // 側邊欄業務篩選
+        function applySalesFilter(rep) {
+            currentSalesFilter = rep;
+            const buttons = document.querySelectorAll('#sales-rep-list button');
+            buttons.forEach(b => {
+                b.className = 'w-full text-left px-2.5 py-1.5 rounded flex items-center justify-between text-slate-600 hover:bg-slate-100';
+            });
+            const activeBtn = document.getElementById(`filter-sales-${rep}`);
+            if (activeBtn) {
+                activeBtn.className = 'w-full text-left px-2.5 py-1.5 rounded flex items-center justify-between font-bold text-red-700 bg-red-50';
+            }
+            updateFilterIndicator();
+            loadContracts();
+        }
+
+        function updateFilterIndicator() {
+            const ind = document.getElementById('active-filter-indicator');
+            const txt = document.getElementById('active-filter-text');
+            if (currentStatusFilter !== 'all' || currentSalesFilter !== 'all') {
+                ind.classList.remove('hidden');
+                let parts = [];
+                if (currentStatusFilter !== 'all') parts.push(currentStatusFilter);
+                if (currentSalesFilter !== 'all') parts.push(currentSalesFilter);
+                txt.innerText = parts.join(' • ');
+            } else {
+                ind.classList.add('hidden');
+            }
+        }
+
+        function resetFilters() {
+            currentStatusFilter = 'all';
+            currentSalesFilter = 'all';
+            document.getElementById('filter-search-input').value = '';
+            document.getElementById('top-search-input').value = '';
+            applyStatusFilter('all');
+            applySalesFilter('all');
+        }
+
+        // 工具下拉選單切換
+        function toggleToolsMenu() {
+            const menu = document.getElementById('tools-menu');
+            menu.classList.toggle('hidden');
+        }
+
+        // ==================== 表單頁 (Ragic Form Page View) 核心邏輯 ====================
+        function openFormForNew() {
+            currentFormIndex = -1;
+            document.getElementById('form-field-id').value = '';
+            document.getElementById('form-display-id').innerText = 'NEW (新增單據)';
+            document.getElementById('form-display-time').innerText = '建立時間: 儲存後產生';
+            document.getElementById('btn-form-delete').classList.add('hidden');
+            document.getElementById('form-record-index').innerText = '新增資料';
+            document.getElementById('btn-prev-record').disabled = true;
+            document.getElementById('btn-next-record').disabled = true;
+
+            // 清空所有表單欄位
+            const fields = [
+                'item_no', 'customer_name', 'sales_rep', 'purchase_date', 'agent', 'si',
+                'payment_stage', 'so_no', 'purchase_content',
+                'license_no', 'license_qty', 'license_period', 'license_expiry',
+                'warranty_no', 'warranty_period', 'warranty_expiry', 'warranty_engineer',
+                'shipping_regulation', 'remark'
+            ];
+            fields.forEach(f => {
+                const el = document.getElementById(`f-${f}`);
+                if (el) el.value = '';
+            });
+            document.getElementById('f-warranty_status').value = '保固中';
+
+            // 切換視圖
+            document.getElementById('view-listing').classList.add('hidden');
+            document.getElementById('view-form').classList.remove('hidden');
+        }
+
+        function openFormPageByIndex(index) {
+            if (index < 0 || index >= filteredContracts.length) return;
+            currentFormIndex = index;
+            const data = filteredContracts[index];
+
+            document.getElementById('form-field-id').value = data.id;
+            document.getElementById('form-display-id').innerText = `#${data.id} (${data.item_no || '無編號'})`;
+            document.getElementById('form-display-time').innerText = `最後更新: ${data.updated_at || data.created_at || '即時'}`;
+            document.getElementById('btn-form-delete').classList.remove('hidden');
+
+            // 更新導航按鈕狀態
+            document.getElementById('form-record-index').innerText = `第 ${index + 1} / ${filteredContracts.length} 筆`;
+            document.getElementById('btn-prev-record').disabled = (index === 0);
+            document.getElementById('btn-next-record').disabled = (index === filteredContracts.length - 1);
+
+            // 填入所有欄位
+            document.getElementById('f-item_no').value = data.item_no || '';
+            document.getElementById('f-customer_name').value = data.customer_name || '';
+            document.getElementById('f-sales_rep').value = data.sales_rep || '';
+            document.getElementById('f-purchase_date').value = data.purchase_date || '';
+            document.getElementById('f-agent').value = data.agent || '';
+            document.getElementById('f-si').value = data.si || '';
+            document.getElementById('f-payment_stage').value = data.payment_stage || '';
+            document.getElementById('f-so_no').value = data.so_no || '';
+            document.getElementById('f-purchase_content').value = data.purchase_content || '';
+
+            document.getElementById('f-license_no').value = data.license_no || '';
+            document.getElementById('f-license_qty').value = data.license_qty || '';
+            document.getElementById('f-license_period').value = data.license_period || '';
+            document.getElementById('f-license_expiry').value = data.license_expiry || '';
+
+            document.getElementById('f-warranty_no').value = data.warranty_no || '';
+            document.getElementById('f-warranty_period').value = data.warranty_period || '';
+            document.getElementById('f-warranty_expiry').value = data.warranty_expiry || '';
+            document.getElementById('f-warranty_status').value = data.warranty_status || '保固中';
+            document.getElementById('f-warranty_engineer').value = data.warranty_engineer || '';
+            document.getElementById('f-shipping_regulation').value = data.shipping_regulation || '';
+            document.getElementById('f-remark').value = data.remark || '';
+
+            // 切換視圖
+            document.getElementById('view-listing').classList.add('hidden');
+            document.getElementById('view-form').classList.remove('hidden');
+        }
+
+        function closeFormPage() {
+            document.getElementById('view-form').classList.add('hidden');
+            document.getElementById('view-listing').classList.remove('hidden');
+        }
+
+        function navigateForm(delta) {
+            const newIndex = currentFormIndex + delta;
+            if (newIndex >= 0 && newIndex < filteredContracts.length) {
+                openFormPageByIndex(newIndex);
+            }
+        }
+
+        // 儲存表單頁
+        async function submitFormPage() {
+            const id = document.getElementById('form-field-id').value;
+            const customerName = document.getElementById('f-customer_name').value.trim();
+            if (!customerName) {
+                alert('請填寫「公司名稱」，此欄位為必填！');
+                document.getElementById('f-customer_name').focus();
+                return;
+            }
+
+            const payload = {
+                item_no: document.getElementById('f-item_no').value.trim(),
+                customer_name: customerName,
+                sales_rep: document.getElementById('f-sales_rep').value.trim(),
+                purchase_date: document.getElementById('f-purchase_date').value.trim(),
+                agent: document.getElementById('f-agent').value.trim(),
+                si: document.getElementById('f-si').value.trim(),
+                payment_stage: document.getElementById('f-payment_stage').value.trim(),
+                so_no: document.getElementById('f-so_no').value.trim(),
+                purchase_content: document.getElementById('f-purchase_content').value.trim(),
+                license_no: document.getElementById('f-license_no').value.trim(),
+                license_qty: document.getElementById('f-license_qty').value.trim(),
+                license_period: document.getElementById('f-license_period').value.trim(),
+                license_expiry: document.getElementById('f-license_expiry').value.trim(),
+                warranty_no: document.getElementById('f-warranty_no').value.trim(),
+                warranty_period: document.getElementById('f-warranty_period').value.trim(),
+                warranty_expiry: document.getElementById('f-warranty_expiry').value.trim(),
+                warranty_status: document.getElementById('f-warranty_status').value,
+                warranty_engineer: document.getElementById('f-warranty_engineer').value.trim(),
+                shipping_regulation: document.getElementById('f-shipping_regulation').value.trim(),
+                remark: document.getElementById('f-remark').value.trim()
+            };
+
+            const url = id ? `/api/contracts/${id}` : '/api/contracts';
+            const method = id ? 'PUT' : 'POST';
+
+            try {
+                const res = await fetch(url, {
+                    method: method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const result = await res.json();
+                if (!res.ok) {
+                    alert(result.error || '儲存失敗');
+                    return;
+                }
+
+                alert('✅ 表單儲存成功！');
+                await loadContracts();
+                await loadStats();
+
+                if (id) {
+                    openFormPageByIndex(currentFormIndex);
+                } else {
+                    closeFormPage();
+                }
+            } catch (err) {
+                alert('網路錯誤: ' + err);
+            }
+        }
+
+        // 刪除當前表單
+        async function deleteCurrentForm() {
+            const id = document.getElementById('form-field-id').value;
+            const name = document.getElementById('f-customer_name').value;
+            if (!id) return;
+
+            if (!confirm(`確定要刪除「${name}」這張明細表單嗎？此動作將無法還原。`)) return;
+
+            try {
+                const res = await fetch(`/api/contracts/${id}`, { method: 'DELETE' });
+                if (res.ok) {
+                    alert('已成功刪除該筆表單！');
+                    closeFormPage();
+                    loadContracts();
+                    loadStats();
+                }
+            } catch (err) {
+                alert('刪除失敗: ' + err);
+            }
+        }
+
+        // ==================== 統計報表 (Analytics View) ====================
+        function renderReportsView() {
+            // 計算各業務分佈長條圖
+            const repCounts = {};
+            allContracts.forEach(c => {
+                const r = c.sales_rep || '未指派';
+                repCounts[r] = (repCounts[r] || 0) + 1;
+            });
+
+            const max = Math.max(...Object.values(repCounts), 1);
+            const container = document.getElementById('reps-bars');
+            container.innerHTML = '';
+
+            for (const rep in repCounts) {
+                const cnt = repCounts[rep];
+                const pct = ((cnt / allContracts.length) * 100).toFixed(1);
+                const barWidth = Math.max((cnt / max) * 100, 5);
+
+                const div = document.createElement('div');
+                div.innerHTML = `
+                    <div class="flex justify-between font-medium mb-1 text-slate-700">
+                        <span>👤 ${rep}</span>
+                        <span>${cnt} 筆 (${pct}%)</span>
+                    </div>
+                    <div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+                        <div class="bg-red-600 h-2 rounded-full" style="width: ${barWidth}%"></div>
+                    </div>
+                `;
+                container.appendChild(div);
+            }
+        }
+
+        // ==================== AI AGENT 助理互動邏輯 ====================
+        function toggleAiDrawer() {
+            const drawer = document.getElementById('ai-drawer');
+            drawer.classList.toggle('translate-x-full');
+        }
+
+        function triggerAiPreset(promptText) {
+            const drawer = document.getElementById('ai-drawer');
+            drawer.classList.remove('translate-x-full');
+            document.getElementById('ai-input').value = promptText;
+            handleSendAiMessage(new Event('submit'));
+        }
+
+        async function handleSendAiMessage(e) {
+            if (e) e.preventDefault();
+            const input = document.getElementById('ai-input');
+            const query = input.value.trim();
+            if (!query) return;
+
+            input.value = '';
+            appendAiUserMessage(query);
+
+            const msgContainer = document.getElementById('ai-messages');
+            const loadingId = 'ai-loading-' + Date.now();
+            const loadingDiv = document.createElement('div');
+            loadingDiv.id = loadingId;
+            loadingDiv.className = 'flex items-start gap-2.5';
+            loadingDiv.innerHTML = `
+                <div class="w-7 h-7 rounded-full bg-red-600 text-white flex items-center justify-center shrink-0 text-xs">
+                    <i class="fa-solid fa-robot"></i>
+                </div>
+                <div class="bg-slate-100 rounded-2xl rounded-tl-none p-3 text-slate-500 text-xs flex items-center gap-2">
+                    <i class="fa-solid fa-spinner fa-spin text-red-600"></i> AI Agent 正在即時查詢資料庫...
+                </div>
+            `;
+            msgContainer.appendChild(loadingDiv);
+            msgContainer.scrollTop = msgContainer.scrollHeight;
+
+            try {
+                const res = await fetch('/api/ai-agent/ask', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ query: query })
+                });
+                const data = await res.json();
+                document.getElementById(loadingId)?.remove();
+
+                appendAiBotResponse(data);
+            } catch (err) {
+                document.getElementById(loadingId)?.remove();
+                appendAiBotResponse({ reply: "抱歉，連線至 AI 助理服務失敗: " + err });
+            }
+        }
+
+        function appendAiUserMessage(text) {
+            const container = document.getElementById('ai-messages');
+            const div = document.createElement('div');
+            div.className = 'flex items-start justify-end gap-2';
+            div.innerHTML = `
+                <div class="bg-red-600 text-white rounded-2xl rounded-tr-none p-3 text-xs leading-relaxed max-w-[85%] shadow-2xs">
+                    ${text}
+                </div>
+                <div class="w-7 h-7 rounded-full bg-slate-800 text-white flex items-center justify-center shrink-0 text-xs">
+                    <i class="fa-solid fa-user"></i>
+                </div>
+            `;
+            container.appendChild(div);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function appendAiBotResponse(data) {
+            const container = document.getElementById('ai-messages');
+            const div = document.createElement('div');
+            div.className = 'flex items-start gap-2.5';
+
+            // 簡易 Markdown 轉換 (換行、粗體、清單)
+            let formatted = data.reply
+                .replace(/### (.*?)\n/g, '<h4 class="font-bold text-slate-900 text-sm mb-1.5">$1</h4>')
+                .replace(/#### (.*?)\n/g, '<h5 class="font-bold text-slate-800 text-xs mb-1">$1</h5>')
+                .replace(/\*\*(.*?)\*\*/g, '<strong class="text-slate-900 font-bold">$1</strong>')
+                .replace(/`(.*?)`/g, '<code class="bg-slate-200 text-slate-800 px-1 py-0.5 rounded font-mono text-[11px]">$1</code>')
+                .replace(/\n\n/g, '<br><br>')
+                .replace(/\n/g, '<br>');
+
+            let actionBtn = '';
+            if (data.matched_ids && data.matched_ids.length > 0) {
+                actionBtn = `
+                    <div class="mt-3 pt-2 border-t border-slate-200">
+                        <button onclick="filterByAiMatchedIds([${data.matched_ids.join(',')}])" class="px-2.5 py-1 bg-white hover:bg-red-50 text-red-600 border border-red-200 rounded font-semibold text-[11px] transition">
+                            <i class="fa-solid fa-filter"></i> 在主列表中僅顯示這 ${data.matched_ids.length} 筆資料
+                        </button>
+                    </div>
+                `;
+            }
+
+            div.innerHTML = `
+                <div class="w-7 h-7 rounded-full bg-red-600 text-white flex items-center justify-center shrink-0 text-xs shadow-xs">
+                    <i class="fa-solid fa-robot"></i>
+                </div>
+                <div class="bg-slate-100 rounded-2xl rounded-tl-none p-3 text-slate-800 leading-relaxed max-w-[85%] border border-slate-200/80 shadow-2xs">
+                    ${formatted}
+                    ${actionBtn}
+                </div>
+            `;
+            container.appendChild(div);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function filterByAiMatchedIds(ids) {
+            filteredContracts = allContracts.filter(c => ids.includes(c.id));
+            toggleAiDrawer();
+            switchTab('contracts');
+            
+            // 重新在畫面上渲染
+            document.getElementById('record-count').innerText = filteredContracts.length;
+            const tableBody = document.getElementById('contracts-table-body');
+            tableBody.innerHTML = '';
+            
+            filteredContracts.forEach((item, index) => {
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-amber-50/50 cursor-pointer transition select-none group bg-amber-50/20';
+                tr.onclick = () => openFormPageByIndex(index);
+                tr.innerHTML = `
+                    <td class="py-2 px-2 text-center text-slate-400 bg-slate-50 font-mono text-[11px]">${index + 1}</td>
+                    <td class="py-2 px-2.5 text-center font-mono font-semibold text-slate-600">${item.item_no || '-'}</td>
+                    <td class="py-2 px-3 font-bold text-slate-900">${item.customer_name}</td>
+                    <td class="py-2 px-3 text-slate-700">${item.sales_rep || '-'}</td>
+                    <td class="py-2 px-3 text-slate-600">${item.si || '-'}</td>
+                    <td class="py-2 px-3 text-slate-700 truncate max-w-xs">${item.purchase_content || '-'}</td>
+                    <td class="py-2 px-3 font-mono text-slate-600">${item.so_no || '-'}</td>
+                    <td class="py-2 px-3 font-mono text-indigo-700">${item.license_no || '-'}</td>
+                    <td class="py-2 px-3 text-slate-600">${item.license_qty || '-'}</td>
+                    <td class="py-2 px-3 font-mono text-slate-700">${item.warranty_no || '-'}</td>
+                    <td class="py-2 px-3 font-medium text-slate-800">${item.warranty_expiry || '-'}</td>
+                    <td class="py-2 px-3 text-center"><span class="px-2 py-0.5 rounded text-[11px] font-semibold bg-slate-200 text-slate-800">${item.warranty_status}</span></td>
+                    <td class="py-2 px-3 text-slate-600">${item.warranty_engineer || '-'}</td>
+                    <td class="py-2 px-2.5 text-center">
+                        <button onclick="openFormPageByIndex(${index})" class="text-red-600 font-semibold text-xs px-2 py-0.5 hover:bg-red-50 rounded">開啟</button>
+                    </td>
+                `;
+                tableBody.appendChild(tr);
+            });
+
+            document.getElementById('active-filter-indicator').classList.remove('hidden');
+            document.getElementById('active-filter-text').innerText = `AI 篩選 (${ids.length} 筆)`;
+        }
+
+        // ==================== EXCEL 匯入邏輯 ====================
+        function openImportModal() {
+            selectedFile = null;
+            document.getElementById('excel-file-input').value = '';
+            document.getElementById('file-label').innerText = '點擊選取或拖曳 Excel 檔案';
+            document.getElementById('btn-submit-import').disabled = true;
+            document.getElementById('import-msg').className = 'hidden text-xs p-3 rounded';
+            document.getElementById('import-modal').classList.remove('hidden');
+        }
+
+        function closeImportModal() {
+            document.getElementById('import-modal').classList.add('hidden');
+        }
+
+        function handleFileSelected(e) {
+            if (e.target.files && e.target.files[0]) {
+                selectedFile = e.target.files[0];
+                document.getElementById('file-label').innerHTML = `<strong class="text-red-700">${selectedFile.name}</strong> (${(selectedFile.size / 1024).toFixed(1)} KB)`;
+                document.getElementById('btn-submit-import').disabled = false;
+            }
+        }
+
+        async function submitImportExcel() {
+            if (!selectedFile) return;
+            const submitBtn = document.getElementById('btn-submit-import');
+            const msgBox = document.getElementById('import-msg');
+
+            submitBtn.disabled = true;
+            submitBtn.innerText = '匯入處理中...';
+            msgBox.className = 'text-xs p-3 rounded bg-red-50 text-red-700 border border-red-200 block';
+            msgBox.innerText = '正在解析 Excel 並批量寫入資料庫，請稍候...';
+
+            const formData = new FormData();
+            formData.append('file', selectedFile);
+
+            try {
+                const res = await fetch('/api/import-excel', { method: 'POST', body: formData });
+                const result = await res.json();
+                if (res.ok) {
+                    msgBox.className = 'text-xs p-3 rounded bg-emerald-50 text-emerald-800 border border-emerald-200 block';
+                    msgBox.innerText = result.message || '匯入成功！';
+                    setTimeout(() => {
+                        closeImportModal();
+                        loadContracts();
+                        loadStats();
+                    }, 1200);
+                } else {
+                    msgBox.className = 'text-xs p-3 rounded bg-rose-50 text-rose-800 border border-rose-200 block';
+                    msgBox.innerText = result.error || '匯入失敗';
+                    submitBtn.disabled = false;
+                    submitBtn.innerText = '開始匯入';
+                }
+            } catch (err) {
+                msgBox.className = 'text-xs p-3 rounded bg-rose-50 text-rose-800 border border-rose-200 block';
+                msgBox.innerText = '網路傳輸錯誤: ' + err;
+                submitBtn.disabled = false;
+                submitBtn.innerText = '開始匯入';
+            }
+        }
+
+        async function autoRecalculateStatus() {
+            try {
+                const res = await fetch('/api/auto-calculate-status', { method: 'POST' });
+                const data = await res.json();
+                if (data.success) {
+                    alert(`已完成保固狀態校正！共有 ${data.updated_count} 筆資料更新了狀態。`);
+                    loadContracts();
+                    loadStats();
+                }
+            } catch (err) {
+                alert('校正失敗: ' + err);
+            }
+        }
+    </script>
+</body>
+</html>
